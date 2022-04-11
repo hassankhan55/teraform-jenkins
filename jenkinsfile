@@ -1,33 +1,29 @@
-  pipeline{
-      agent any 
-      
+pipeline {
+    agent any
 
-    stages{
-        stage("Pull Source Code from GitHub") {
-            steps {
-                git branch: 'main', credentialsId: 'git', url: 'https://github.com/hassankhan55/teraform-jenkins.git'
+    stages {
+      stage('fetch_latest_code_from_github') {
+        steps {
+          git credentialsId: 'git', url: 'https://github.com/hassankhan55/teraform-jenkins.git'
+        }
+      }
+
+      stage('Deploy_AWS') {
+        steps {
+            script {
+            withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding', 
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY',
+                        credentialsId: 'aws-credentials'
+                    ]]) {
+                            sh 'terraform init'
+                            sh 'terraform plan'
+                            def userInput = input(id: 'confirm', message: 'Apply Terraform?', parameters: [ [$class: 'BooleanParameterDefinition', defaultValue: false, description: 'Apply terraform', name: 'confirm'] ])
+                            sh 'terraform apply -auto-approve'
+                    }
             }
-        }
-
-      stage('TF Init&Plan') {
-        steps {
-          sh 'terraform init'
-          sh 'terraform plan'
         }      
-      }
-
-      stage('Approval') {
-        steps {
-          script {
-            def userInput = input(id: 'confirm', message: 'Apply Terraform?', parameters: [ [$class: 'BooleanParameterDefinition', defaultValue: false, description: 'Apply terraform', name: 'confirm'] ])
-          }
-        }
-      }
-
-      stage('TF Apply') {
-        steps {
-          sh 'terraform apply -auto-approve'
-        }
       }
     } 
   }
